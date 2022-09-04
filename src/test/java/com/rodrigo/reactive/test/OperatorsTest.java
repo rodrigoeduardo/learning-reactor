@@ -1,11 +1,16 @@
 package com.rodrigo.reactive.test;
 
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import reactor.core.scheduler.Scheduler;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 
 @Slf4j
 public class OperatorsTest {
@@ -115,5 +120,40 @@ public class OperatorsTest {
                 .expectSubscription()
                 .expectNext(1,2,3,4)
                 .verifyComplete();
+    }
+
+    @Test
+    public void subscribeOnIO() throws Exception {
+        Mono<List<String>> list = Mono.fromCallable(() -> Files.readAllLines(Path.of("text-file")))
+                .log()
+                .subscribeOn(Schedulers.boundedElastic());
+
+//        list.subscribe(s -> log.info("{}", s));
+
+        StepVerifier.create(list)
+                .expectSubscription()
+                .thenConsumeWhile(l -> {
+                    Assertions.assertFalse(l.isEmpty());
+                    log.info("Tamanho {}", l.size());
+                    return true;
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    public void switchIfEmptyOperator() {
+        Flux<Object> flux = emptyFlux()
+                // funciona como um fallback para se o publisher (no caso "flux") for vazio
+                .switchIfEmpty(Flux.just("não sou vazio"))
+                .log();
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext("não sou vazio")
+                .verifyComplete();
+    }
+
+    private Flux<Object> emptyFlux() {
+        return Flux.empty();
     }
 }

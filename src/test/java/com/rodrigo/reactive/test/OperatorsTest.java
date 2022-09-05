@@ -1,5 +1,9 @@
 package com.rodrigo.reactive.test;
 
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -7,6 +11,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
+import reactor.util.function.Tuple3;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -294,5 +299,27 @@ public class OperatorsTest {
 
     public Flux<String> findByName(String name) {
         return name.equals("A") ? Flux.just("nameA1", "nameA2") : Flux.just("nameB1", "nameB2");
+    }
+
+    @Test
+    public void zipOperator() {
+        Flux<String> titleFlux = Flux.just("1917", "Memento");
+        Flux<String> studioFlux = Flux.just("War Friends", "Dark College");
+        Flux<Integer> durationFlux = Flux.just(7140, 6990);
+
+        // TAMBÉM É POSSÍVEL UTILIZAR O ZIPWITH (exemplo: titleFlux.zipWith(studioFlux))
+        Flux<Movie> movieFlux = Flux.zip(titleFlux, studioFlux, durationFlux)
+                .flatMap(tuple -> Flux.just(new Movie(tuple.getT1(), tuple.getT2(), tuple.getT3())));
+
+        movieFlux.subscribe(movie -> log.info(movie.toString()));
+    }
+    @AllArgsConstructor
+    @Getter
+    @ToString
+    @EqualsAndHashCode
+    class Movie {
+        private String title;
+        private String studio;
+        private int duration; // in seconds
     }
 }

@@ -10,6 +10,7 @@ import reactor.test.StepVerifier;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 
 @Slf4j
@@ -203,6 +204,22 @@ public class OperatorsTest {
         StepVerifier.create(combineLatest)
                 .expectSubscription()
                 .expectNext("bc", "bd")
+                .verifyComplete();
+    }
+
+    @Test
+    public void mergeOperator() throws Exception {
+        Flux<String> flux1 = Flux.just("a", "b").delayElements(Duration.ofMillis(200));
+        Flux<String> flux2 = Flux.just("c", "d");
+
+        // É possível utilizar o mergeWith também que seria: flux1.mergeWith(flux2)
+        Flux<String> mergeFlux = Flux.merge(flux1, flux2)
+                .delayElements(Duration.ofMillis(200))
+                .log();
+
+        StepVerifier.create(mergeFlux)
+                .expectSubscription()
+                .expectNext("c", "d", "a", "b")
                 .verifyComplete();
     }
 }

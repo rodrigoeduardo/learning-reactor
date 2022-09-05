@@ -193,6 +193,23 @@ public class OperatorsTest {
     }
 
     @Test
+    public void concatOperatorError() {
+        Flux<String> flux1 = Flux.just("a", "b")
+                .map(s -> {
+                    if (s.equals("b")) {
+                        throw new IllegalArgumentException();
+                    }
+                    return s;
+                });
+        Flux<String> flux2 = Flux.just("c", "d");
+
+        // mesmo com erro ele continua a concatenação e adia o erro
+        Flux<String> concat = Flux.concatDelayError(flux1, flux2).log();
+
+        concat.subscribe(s -> log.info("Concat {}", s));
+    }
+
+    @Test
     public void combineLatestOperator() {
         Flux<String> flux1 = Flux.just("a", "b");
         Flux<String> flux2 = Flux.just("c", "d");
@@ -221,5 +238,61 @@ public class OperatorsTest {
                 .expectSubscription()
                 .expectNext("c", "d", "a", "b")
                 .verifyComplete();
+    }
+
+    @Test
+    public void mergeSequentialOperator() throws Exception {
+        Flux<String> flux1 = Flux.just("a", "b").delayElements(Duration.ofMillis(200));
+        Flux<String> flux2 = Flux.just("c", "d");
+
+        Flux<String> mergeFlux = Flux.mergeSequential(flux1, flux2, flux1)
+                .delayElements(Duration.ofMillis(200))
+                .log();
+
+        StepVerifier.create(mergeFlux)
+                .expectSubscription()
+                .expectNext("a", "b", "c", "d", "a", "b")
+                .verifyComplete();
+    }
+
+    @Test
+    public void mergeDelayErrorOperator() throws Exception {
+        Flux<String> flux1 = Flux.just("a", "b")
+                .map(s -> {
+                    if (s.equals("b")) {
+                        throw new IllegalArgumentException();
+                    }
+                    return s;
+                })
+                .doOnError(e -> log.error("Erro no flux1"));
+
+        Flux<String> flux2 = Flux.just("c", "d");
+
+        Flux<String> mergeFlux = Flux.mergeDelayError(1, flux1, flux2, flux1)
+                .log();
+
+        mergeFlux.subscribe(log::info);
+    }
+
+    // UM DOS MAIS USADOS/IMPORTANTES
+    @Test
+    public void flatMapOperator() throws Exception {
+        Flux<String> flux = Flux.just("a", "b");
+
+        // 1 - SE UTILIZADO O MAP OPERATOR, IRIA CRIAR UM Flux<Flux<String>>
+        // 2- O FLAT MAP ATUA PARECIDO COM O MERGE OPERATOR:
+        // ELE NÃO GARANTE A ORDEM POIS A ORDEM É CRIADA
+        // DE ACORDO COM O ELEMENTOS SAO EMITIDOS
+        // 3 - PARA TER A ORDEM SEQUENCIAL UTILIZAR O
+        // FLATMAPSEQUENTIAL
+        Flux<String> flatFlux = flux.map(String::toUpperCase)
+                .flatMap(this::findByName)
+                .log();
+
+        flatFlux.subscribe(log::info);
+    }
+
+    public Flux<String> findByName(String name) {
+        return name.equals("A") ? Flux.just("nameA1", "nameA2") : Flux.just("nameB1", "nameB2");
     }
 }

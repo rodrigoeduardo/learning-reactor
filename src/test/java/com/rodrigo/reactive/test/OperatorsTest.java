@@ -156,4 +156,53 @@ public class OperatorsTest {
     private Flux<Object> emptyFlux() {
         return Flux.empty();
     }
+
+    @Test
+    public void deferOperator() throws Exception {
+        Mono<Long> just = Mono.just(System.currentTimeMillis());
+        Mono<Long> defer = Mono.defer(() -> Mono.just(System.currentTimeMillis()));
+
+        // COM JUST TODOS OS VALORES DOS LOGS SERÃO IGUAIS
+        // POIS O VALOR É SETADO NA HORA DA INSTANCIAÇÃO
+        just.subscribe(s -> log.info("Hora (just): {}", s));
+        Thread.sleep(100);
+        just.subscribe(s -> log.info("Hora (just): {}", s));
+        Thread.sleep(100);
+        just.subscribe(s -> log.info("Hora (just): {}", s));
+
+        // JÁ COM DEFER OS VALORES SERÃO SETADOS NA HORA DA
+        // INSCRIÇÃO (SUBSCRIBE)
+        defer.subscribe(s -> log.info("Hora (defer): {}", s));
+        Thread.sleep(100);
+        defer.subscribe(s -> log.info("Hora (defer): {}", s));
+        Thread.sleep(100);
+        defer.subscribe(s -> log.info("Hora (defer): {}", s));
+    }
+
+    @Test
+    public void concatAndConcatWithOperator() {
+        Flux<String> flux1 = Flux.just("a", "b");
+        Flux<String> flux2 = Flux.just("c", "d");
+
+        Flux<String> concat = Flux.concat(flux1, flux2).log();
+        Flux<String> concatWith = flux1.concatWith(flux2).log();
+
+        concat.subscribe(s -> log.info("Concat {}", s));
+        concatWith.subscribe(s -> log.info("Concat with {}", s));
+    }
+
+    @Test
+    public void combineLatestOperator() {
+        Flux<String> flux1 = Flux.just("a", "b");
+        Flux<String> flux2 = Flux.just("c", "d");
+
+        Flux<String> combineLatest = Flux.combineLatest(flux1, flux2,
+                (s1, s2) -> s1 + s2)
+                        .log();
+
+        StepVerifier.create(combineLatest)
+                .expectSubscription()
+                .expectNext("bc", "bd")
+                .verifyComplete();
+    }
 }
